@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GRIND — Train & Study Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #2a2a3a;
+    --accent-train: #f5a623;
+    --accent-study: #4ecdc4;
+    --accent-train-dim: rgba(245,166,35,0.12);
+    --accent-study-dim: rgba(78,205,196,0.12);
+    --text: #e8e8f0;
+    --text-dim: #6b6b85;
+    --green: #52e383;
+    --red: #ff5263;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* BG texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 20%, rgba(245,166,35,0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(78,205,196,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 24px 20px 80px; }
+
+  /* Header */
+  header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 36px; flex-wrap: wrap; gap: 12px; }
+  .logo { font-family: 'Bebas Neue', cursive; font-size: 56px; letter-spacing: 4px; line-height: 1;
+    background: linear-gradient(135deg, var(--accent-train), var(--accent-study));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .logo span { font-size: 13px; font-family: 'DM Mono', monospace; color: var(--text-dim); display: block; letter-spacing: 3px; margin-top: 4px; -webkit-text-fill-color: var(--text-dim); }
+  .date-display { text-align: right; }
+  .date-display .today { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; }
+  .date-display .day { font-family: 'Bebas Neue', cursive; font-size: 28px; color: var(--text); letter-spacing: 2px; }
+
+  /* Streak bar */
+  .streak-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+  .streak-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 16px;
+    transition: transform 0.2s;
+  }
+  .streak-card:hover { transform: translateY(-2px); }
+  .streak-card.train { border-color: rgba(245,166,35,0.3); }
+  .streak-card.study { border-color: rgba(78,205,196,0.3); }
+  .streak-icon { font-size: 28px; }
+  .streak-info .label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); font-family: 'DM Mono', monospace; }
+  .streak-info .value { font-family: 'Bebas Neue', cursive; font-size: 32px; letter-spacing: 2px; }
+  .streak-card.train .value { color: var(--accent-train); }
+  .streak-card.study .value { color: var(--accent-study); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+  .tab {
+    padding: 10px 24px; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-dim); font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500; cursor: pointer; letter-spacing: 0.5px;
+    transition: all 0.2s;
+  }
+  .tab:hover { color: var(--text); border-color: var(--text-dim); }
+  .tab.active { background: var(--surface2); border-color: transparent; color: var(--text); }
+  .tab.train.active { background: var(--accent-train-dim); border-color: rgba(245,166,35,0.4); color: var(--accent-train); }
+  .tab.study.active { background: var(--accent-study-dim); border-color: rgba(78,205,196,0.4); color: var(--accent-study); }
+
+  /* Section */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* Today's checklist */
+  .section-title {
+    font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 3px;
+    color: var(--text-dim); margin-bottom: 14px; text-transform: uppercase;
+  }
+
+  .checklist { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+  .check-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .check-item:hover { border-color: var(--text-dim); }
+  .check-item.done { background: var(--surface2); }
+  .check-item.done.train { background: var(--accent-train-dim); border-color: rgba(245,166,35,0.4); }
+  .check-item.done.study { background: var(--accent-study-dim); border-color: rgba(78,205,196,0.4); }
+  .check-box {
+    width: 22px; height: 22px; border-radius: 6px;
+    border: 2px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; transition: all 0.2s;
+  }
+  .check-item.done.train .check-box { background: var(--accent-train); border-color: var(--accent-train); }
+  .check-item.done.study .check-box { background: var(--accent-study); border-color: var(--accent-study); }
+  .check-item .task-info { flex: 1; }
+  .check-item .task-name { font-size: 15px; font-weight: 500; }
+  .check-item.done .task-name { text-decoration: line-through; color: var(--text-dim); }
+  .check-item .task-meta { font-size: 12px; color: var(--text-dim); font-family: 'DM Mono', monospace; margin-top: 2px; }
+  .delete-btn {
+    background: none; border: none; color: var(--text-dim); cursor: pointer;
+    font-size: 16px; padding: 4px; opacity: 0; transition: opacity 0.2s;
+  }
+  .check-item:hover .delete-btn { opacity: 1; }
+  .delete-btn:hover { color: var(--red); }
+
+  /* Add task */
+  .add-task-form {
+    display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .add-task-form input, .add-task-form select {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: 14px; padding: 10px 14px; border-radius: 8px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .add-task-form input:focus, .add-task-form select:focus { border-color: var(--text-dim); }
+  .add-task-form input[type=text] { flex: 1; min-width: 160px; }
+  .add-task-form input[type=text]::placeholder { color: var(--text-dim); }
+  .add-task-form select option { background: #1a1a24; }
+  .btn {
+    padding: 10px 20px; border-radius: 8px; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px;
+  }
+  .btn-train { background: var(--accent-train); color: #000; }
+  .btn-train:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn-study { background: var(--accent-study); color: #000; }
+  .btn-study:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+  /* Progress ring */
+  .progress-section { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  .progress-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .ring-wrap { position: relative; width: 70px; height: 70px; flex-shrink: 0; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-wrap .ring-bg { fill: none; stroke: var(--border); stroke-width: 6; }
+  .ring-wrap .ring-fill { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.6s cubic-bezier(0.4,0,0.2,1); }
+  .ring-wrap .ring-pct {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', cursive; font-size: 18px; letter-spacing: 1px;
+  }
+  .progress-card.train .ring-fill { stroke: var(--accent-train); }
+  .progress-card.train .ring-pct { color: var(--accent-train); }
+  .progress-card.study .ring-fill { stroke: var(--accent-study); }
+  .progress-card.study .ring-pct { color: var(--accent-study); }
+  .progress-info .plabel { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); font-family: 'DM Mono', monospace; }
+  .progress-info .ptasks { font-size: 22px; font-family: 'Bebas Neue', cursive; letter-spacing: 1px; margin-top: 4px; }
+  .progress-card.train .ptasks { color: var(--accent-train); }
+  .progress-card.study .ptasks { color: var(--accent-study); }
+
+  /* Heatmap / Calendar */
+  .heatmap-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 28px; }
+  .heatmap-title { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px; }
+  .heatmap-grid { display: flex; gap: 4px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .heatmap-col { display: flex; flex-direction: column; gap: 4px; }
+  .heatmap-cell {
+    width: 14px; height: 14px; border-radius: 3px;
+    background: var(--surface2);
+    cursor: pointer; transition: transform 0.1s;
+    position: relative;
+  }
+  .heatmap-cell:hover { transform: scale(1.3); }
+  .heatmap-cell.level-1 { background: rgba(245,166,35,0.3); }
+  .heatmap-cell.level-2 { background: rgba(245,166,35,0.5); }
+  .heatmap-cell.level-3 { background: rgba(245,166,35,0.75); }
+  .heatmap-cell.level-4 { background: var(--accent-train); }
+  .heatmap-cell.study-1 { background: rgba(78,205,196,0.3); }
+  .heatmap-cell.study-2 { background: rgba(78,205,196,0.5); }
+  .heatmap-cell.study-3 { background: rgba(78,205,196,0.75); }
+  .heatmap-cell.study-4 { background: var(--accent-study); }
+  .heatmap-cell.both { background: linear-gradient(135deg, var(--accent-train) 50%, var(--accent-study) 50%); }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+    text-align: center;
+  }
+  .stat-card .sval { font-family: 'Bebas Neue', cursive; font-size: 36px; letter-spacing: 2px; }
+  .stat-card .slabel { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+  /* Motivation quote */
+  .quote-card {
+    background: var(--surface2); border-left: 3px solid var(--accent-train);
+    border-radius: var(--radius); padding: 16px 20px;
+    font-size: 14px; line-height: 1.7; color: var(--text-dim);
+    margin-bottom: 20px; font-style: italic;
+  }
+
+  /* Weekly view */
+  .week-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 28px; }
+  .day-col { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 8px; text-align: center; }
+  .day-col.today { border-color: rgba(245,166,35,0.5); background: var(--accent-train-dim); }
+  .day-col .dname { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); font-family: 'DM Mono', monospace; }
+  .day-col .dnum { font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 1px; margin: 4px 0; }
+  .day-col.today .dnum { color: var(--accent-train); }
+  .day-dots { display: flex; gap: 3px; justify-content: center; }
+  .day-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .day-dot.train { background: var(--accent-train); }
+  .day-dot.study { background: var(--accent-study); }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 24px; font-size: 14px;
+    transition: transform 0.3s; z-index: 100; white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 600px) {
+    .logo { font-size: 40px; }
+    .streak-bar, .progress-section { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .week-row { grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .day-col { padding: 8px 4px; }
+    .day-col .dname { font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">GRIND<span>TRAIN · STUDY · REPEAT</span></div>
+    <div class="date-display">
+      <div class="today" id="todayLabel"></div>
+      <div class="day" id="todayDay"></div>
+    </div>
+  </header>
+
+  <!-- Streaks -->
+  <div class="streak-bar">
+    <div class="streak-card train">
+      <div class="streak-icon">🔥</div>
+      <div class="streak-info">
+        <div class="label">Training Streak</div>
+        <div class="value" id="trainStreak">0 DAYS</div>
+      </div>
+    </div>
+    <div class="streak-card study">
+      <div class="streak-icon">⚡</div>
+      <div class="streak-info">
+        <div class="label">Study Streak</div>
+        <div class="value" id="studyStreak">0 DAYS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab train active" onclick="switchTab('train')">💪 Training</button>
+    <button class="tab study" onclick="switchTab('study')">📚 Studies</button>
+    <button class="tab" onclick="switchTab('stats')">📊 Progress</button>
+  </div>
+
+  <!-- TRAINING SECTION -->
+  <div class="section active" id="sec-train">
+    <div class="progress-section">
+      <div class="progress-card train">
+        <div class="ring-wrap">
+          <svg width="70" height="70" viewBox="0 0 70 70">
+            <circle class="ring-bg" cx="35" cy="35" r="28"/>
+            <circle class="ring-fill" cx="35" cy="35" r="28" id="trainRing"
+              stroke-dasharray="175.9" stroke-dashoffset="175.9"/>
+          </svg>
+          <div class="ring-pct" id="trainPct">0%</div>
+        </div>
+        <div class="progress-info">
+          <div class="plabel">Today's Training</div>
+          <div class="ptasks" id="trainTaskCount">0 / 0 Done</div>
+        </div>
+      </div>
+      <div class="progress-card study">
+        <div class="ring-wrap">
+          <svg width="70" height="70" viewBox="0 0 70 70">
+            <circle class="ring-bg" cx="35" cy="35" r="28"/>
+            <circle class="ring-fill" cx="35" cy="35" r="28" id="studyRing"
+              stroke-dasharray="175.9" stroke-dashoffset="175.9"/>
+          </svg>
+          <div class="ring-pct" id="studyPct">0%</div>
+        </div>
+        <div class="progress-info">
+          <div class="plabel">Today's Studies</div>
+          <div class="ptasks" id="studyTaskCount">0 / 0 Done</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Today's Workout</div>
+    <div class="checklist" id="trainList"></div>
+    <div class="add-task-form">
+      <input type="text" id="trainInput" placeholder="Add exercise (e.g. Push-ups 3×12)" />
+      <input type="text" id="trainMeta" placeholder="Sets / Reps / Duration" style="max-width:180px"/>
+      <button class="btn btn-train" onclick="addTask('train')">+ Add</button>
+    </div>
+  </div>
+
+  <!-- STUDY SECTION -->
+  <div class="section" id="sec-study">
+    <div class="section-title">Today's Study Tasks</div>
+    <div class="checklist" id="studyList"></div>
+    <div class="add-task-form">
+      <input type="text" id="studyInput" placeholder="Add topic (e.g. Chapter 5 - Calculus)" />
+      <input type="text" id="studyMeta" placeholder="Subject / Duration" style="max-width:180px"/>
+      <button class="btn btn-study" onclick="addTask('study')">+ Add</button>
+    </div>
+  </div>
+
+  <!-- STATS SECTION -->
+  <div class="section" id="sec-stats">
+    <div class="section-title">This Week</div>
+    <div class="week-row" id="weekRow"></div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="sval" id="statTotalTrain" style="color:var(--accent-train)">0</div>
+        <div class="slabel">Training Days</div>
+      </div>
+      <div class="stat-card">
+        <div class="sval" id="statTotalStudy" style="color:var(--accent-study)">0</div>
+        <div class="slabel">Study Days</div>
+      </div>
+      <div class="stat-card">
+        <div class="sval" id="statBothDays" style="color:var(--green)">0</div>
+        <div class="slabel">Perfect Days</div>
+      </div>
+      <div class="stat-card">
+        <div class="sval" id="statMaxTrainStreak" style="color:var(--accent-train)">0</div>
+        <div class="slabel">Best Train Streak</div>
+      </div>
+      <div class="stat-card">
+        <div class="sval" id="statMaxStudyStreak" style="color:var(--accent-study)">0</div>
+        <div class="slabel">Best Study Streak</div>
+      </div>
+      <div class="stat-card">
+        <div class="sval" id="statTotalTasks" style="color:var(--green)">0</div>
+        <div class="slabel">Total Tasks Done</div>
+      </div>
+    </div>
+
+    <div class="section-title">90 Day Activity</div>
+    <div class="heatmap-wrap">
+      <div class="heatmap-title" id="heatmapLabel">Training 🔥 &nbsp;&nbsp; Study ⚡ &nbsp;&nbsp; Both ✨</div>
+      <div class="heatmap-grid" id="heatmapGrid"></div>
+    </div>
+
+    <div class="quote-card" id="quoteCard"></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// DATA LAYER (localStorage)
+// ============================================================
+const KEY_TASKS = 'grind_tasks';
+const KEY_HISTORY = 'grind_history';
+
+function loadTasks() {
+  try { return JSON.parse(localStorage.getItem(KEY_TASKS)) || { train: [], study: [] }; }
+  catch { return { train: [], study: [] }; }
+}
+function saveTasks(d) { localStorage.setItem(KEY_TASKS, JSON.stringify(d)); }
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(KEY_HISTORY)) || {}; }
+  catch { return {}; }
+}
+function saveHistory(h) { localStorage.setItem(KEY_HISTORY, JSON.stringify(h)); }
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ============================================================
+// SEED DEFAULT TASKS IF EMPTY
+// ============================================================
+function initDefaultTasks() {
+  let data = loadTasks();
+  if (data.train.length === 0) {
+    data.train = [
+      { id: uid(), name: 'Push-ups', meta: '3 × 15 reps', done: false },
+      { id: uid(), name: 'Pull-ups', meta: '3 × 8 reps', done: false },
+      { id: uid(), name: 'Squats', meta: '4 × 20 reps', done: false },
+      { id: uid(), name: 'Plank Hold', meta: '3 × 60 sec', done: false },
+      { id: uid(), name: 'Running / Walk', meta: '20-30 min', done: false },
+    ];
+  }
+  if (data.study.length === 0) {
+    data.study = [
+      { id: uid(), name: 'Morning Revision', meta: '30 min', done: false },
+      { id: uid(), name: 'New Topic Study', meta: '1 hour', done: false },
+      { id: uid(), name: 'Practice Problems', meta: '45 min', done: false },
+      { id: uid(), name: 'Read / Notes', meta: '30 min', done: false },
+    ];
+  }
+  saveTasks(data);
+  return data;
+}
+
+function uid() { return Math.random().toString(36).slice(2,9); }
+
+// ============================================================
+// RENDER
+// ============================================================
+let currentTab = 'train';
+let data = {};
+
+function render() {
+  data = loadTasks();
+  renderList('train');
+  renderList('study');
+  renderStreaks();
+  renderProgress();
+  renderStats();
+  renderWeek();
+  renderHeatmap();
+  renderQuote();
+  updateHeader();
+}
+
+function updateHeader() {
+  const now = new Date();
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('todayLabel').textContent = `${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+  document.getElementById('todayDay').textContent = days[now.getDay()].toUpperCase();
+}
+
+function renderList(type) {
+  const list = document.getElementById(type+'List');
+  list.innerHTML = '';
+  data[type].forEach(task => {
+    const div = document.createElement('div');
+    div.className = `check-item ${type} ${task.done ? 'done' : ''}`;
+    div.innerHTML = `
+      <div class="check-box">${task.done ? '✓' : ''}</div>
+      <div class="task-info">
+        <div class="task-name">${escHtml(task.name)}</div>
+        ${task.meta ? `<div class="task-meta">${escHtml(task.meta)}</div>` : ''}
+      </div>
+      <button class="delete-btn" onclick="deleteTask('${type}','${task.id}',event)" title="Delete">✕</button>
+    `;
+    div.addEventListener('click', e => { if(!e.target.classList.contains('delete-btn')) toggleTask(type, task.id); });
+    list.appendChild(div);
+  });
+}
+
+function renderProgress() {
+  ['train','study'].forEach(type => {
+    const total = data[type].length;
+    const done = data[type].filter(t=>t.done).length;
+    const pct = total > 0 ? Math.round(done/total*100) : 0;
+    const circ = 175.9;
+    const offset = circ - (pct/100)*circ;
+    document.getElementById(type+'Ring').style.strokeDashoffset = offset;
+    document.getElementById(type+'Pct').textContent = pct+'%';
+    document.getElementById(type+'TaskCount').textContent = `${done} / ${total} Done`;
+  });
+}
+
+function renderStreaks() {
+  const hist = loadHistory();
+  const tStreak = calcStreak(hist, 'train');
+  const sStreak = calcStreak(hist, 'study');
+  document.getElementById('trainStreak').textContent = tStreak + (tStreak===1?' DAY':' DAYS');
+  document.getElementById('studyStreak').textContent = sStreak + (sStreak===1?' DAY':' DAYS');
+}
+
+function calcStreak(hist, type) {
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today); d.setDate(d.getDate()-i);
+    const k = fmtDate(d);
+    if (i === 0) {
+      // today counts if at least 1 task done
+      const hasDone = data[type] && data[type].some(t=>t.done);
+      if (hist[k]?.[type] || hasDone) { streak++; continue; }
+      else { continue; }
+    }
+    if (hist[k]?.[type]) streak++;
+    else break;
+  }
+  return streak;
+}
+
+function calcMaxStreak(hist, type) {
+  let max = 0, cur = 0;
+  const keys = Object.keys(hist).sort();
+  keys.forEach(k => { if(hist[k]?.[type]) { cur++; max = Math.max(max,cur); } else cur = 0; });
+  return max;
+}
+
+function renderStats() {
+  const hist = loadHistory();
+  let trainDays = 0, studyDays = 0, bothDays = 0, totalTasks = 0;
+  Object.values(hist).forEach(d => {
+    if(d.train) trainDays++;
+    if(d.study) studyDays++;
+    if(d.train && d.study) bothDays++;
+    totalTasks += (d.trainCount||0) + (d.studyCount||0);
+  });
+  // add today's done
+  const todayDone = data.train.filter(t=>t.done).length + data.study.filter(t=>t.done).length;
+  document.getElementById('statTotalTrain').textContent = trainDays;
+  document.getElementById('statTotalStudy').textContent = studyDays;
+  document.getElementById('statBothDays').textContent = bothDays;
+  document.getElementById('statMaxTrainStreak').textContent = calcMaxStreak(hist,'train') + ' d';
+  document.getElementById('statMaxStudyStreak').textContent = calcMaxStreak(hist,'study') + ' d';
+  document.getElementById('statTotalTasks').textContent = totalTasks + todayDone;
+}
+
+function renderWeek() {
+  const row = document.getElementById('weekRow');
+  row.innerHTML = '';
+  const hist = loadHistory();
+  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+
+  for(let i=0;i<7;i++){
+    const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate()+i);
+    const k = fmtDate(d);
+    const isToday = k === todayKey();
+    const hasTrain = hist[k]?.train || (isToday && data.train.some(t=>t.done));
+    const hasStudy = hist[k]?.study || (isToday && data.study.some(t=>t.done));
+    const col = document.createElement('div');
+    col.className = 'day-col' + (isToday?' today':'');
+    col.innerHTML = `
+      <div class="dname">${days[d.getDay()]}</div>
+      <div class="dnum">${d.getDate()}</div>
+      <div class="day-dots">
+        ${hasTrain ? '<div class="day-dot train"></div>' : ''}
+        ${hasStudy ? '<div class="day-dot study"></div>' : ''}
+      </div>
+    `;
+    row.appendChild(col);
+  }
+}
+
+function renderHeatmap() {
+  const grid = document.getElementById('heatmapGrid');
+  grid.innerHTML = '';
+  const hist = loadHistory();
+  const today = new Date();
+  // 13 weeks = 91 days, start from 90 days ago
+  const start = new Date(today); start.setDate(today.getDate()-90);
+  // align to Sunday
+  start.setDate(start.getDate() - start.getDay());
+
+  let col = null;
+  const totalDays = Math.round((today - start) / 86400000) + 1;
+
+  for(let i=0;i<totalDays;i++){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    if(i%7===0){ col = document.createElement('div'); col.className='heatmap-col'; grid.appendChild(col); }
+    const k = fmtDate(d);
+    const isToday = k===todayKey();
+    const hasTrain = hist[k]?.train || (isToday && data.train.some(t=>t.done));
+    const hasStudy = hist[k]?.study || (isToday && data.study.some(t=>t.done));
+    const cell = document.createElement('div');
+    cell.className = 'heatmap-cell';
+    if(hasTrain && hasStudy) cell.className += ' both';
+    else if(hasTrain) cell.className += ' level-4';
+    else if(hasStudy) cell.className += ' study-4';
+    cell.title = k + (hasTrain?' 🔥':'') + (hasStudy?' ⚡':'');
+    col.appendChild(cell);
+  }
+}
+
+const quotes = [
+  "The body achieves what the mind believes. Keep showing up.",
+  "One more rep. One more chapter. That's how legends are built.",
+  "Discipline is choosing between what you want now and what you want most.",
+  "You don't have to be extreme — just consistent.",
+  "Strong body. Sharp mind. Unstoppable life.",
+  "Every day you skip is a day someone else gets ahead. Don't skip.",
+  "Iron sharpens iron — train hard, study harder.",
+  "Your only competition is who you were yesterday.",
+  "Pain is temporary. The results are permanent.",
+  "Champions are made in the hours when everyone else is sleeping.",
+];
+function renderQuote() {
+  const q = quotes[new Date().getDate() % quotes.length];
+  document.getElementById('quoteCard').textContent = '"' + q + '"';
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+function toggleTask(type, id) {
+  data[type] = data[type].map(t => t.id===id ? {...t, done: !t.done} : t);
+  saveTasks(data);
+  persistTodayHistory();
+  render();
+  const task = data[type].find(t=>t.id===id);
+  if(task?.done) showToast(type==='train' ? '💪 Task crushed!' : '📚 Task done!');
+}
+
+function deleteTask(type, id, e) {
+  e.stopPropagation();
+  data[type] = data[type].filter(t=>t.id!==id);
+  saveTasks(data);
+  persistTodayHistory();
+  render();
+  showToast('Removed.');
+}
+
+function addTask(type) {
+  const inputEl = document.getElementById(type+'Input');
+  const metaEl = document.getElementById(type+'Meta');
+  const name = inputEl.value.trim();
+  if(!name) { inputEl.focus(); return; }
+  data[type].push({ id: uid(), name, meta: metaEl.value.trim(), done: false });
+  saveTasks(data);
+  inputEl.value = ''; metaEl.value = '';
+  render();
+  showToast(type==='train' ? '💪 Exercise added!' : '📚 Topic added!');
+}
+
+function persistTodayHistory() {
+  const hist = loadHistory();
+  const k = todayKey();
+  const trainDone = data.train.filter(t=>t.done).length;
+  const studyDone = data.study.filter(t=>t.done).length;
+  hist[k] = {
+    train: trainDone > 0,
+    study: studyDone > 0,
+    trainCount: trainDone,
+    studyCount: studyDone,
+  };
+  saveHistory(hist);
+}
+
+// ============================================================
+// TAB
+// ============================================================
+function switchTab(name) {
+  currentTab = name;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  const btn = document.querySelector(`.tab.${name}`) || document.querySelectorAll('.tab')[2];
+  btn.classList.add('active');
+  document.getElementById('sec-'+name).classList.add('active');
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function fmtDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if(e.key==='Enter') {
+    if(document.getElementById('trainInput')===document.activeElement ||
+       document.getElementById('trainMeta')===document.activeElement) addTask('train');
+    if(document.getElementById('studyInput')===document.activeElement ||
+       document.getElementById('studyMeta')===document.activeElement) addTask('study');
+  }
+});
+
+// ============================================================
+// MIDNIGHT RESET — archive today and clear done states
+// ============================================================
+function checkMidnightReset() {
+  const lastKey = localStorage.getItem('grind_last_day');
+  const todKey = todayKey();
+  if(lastKey && lastKey !== todKey) {
+    // Archive yesterday's completion
+    const hist = loadHistory();
+    const d = loadTasks();
+    const trainDone = d.train.filter(t=>t.done).length;
+    const studyDone = d.study.filter(t=>t.done).length;
+    hist[lastKey] = { train: trainDone>0, study: studyDone>0, trainCount: trainDone, studyCount: studyDone };
+    saveHistory(hist);
+    // Reset done states for today
+    d.train = d.train.map(t=>({...t, done:false}));
+    d.study = d.study.map(t=>({...t, done:false}));
+    saveTasks(d);
+  }
+  localStorage.setItem('grind_last_day', todKey);
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+checkMidnightReset();
+initDefaultTasks();
+render();
+</script>
+</body>
+</html>
